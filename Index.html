@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geekster - Blind Test Aléatoire</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #111; color: white; font-family: Arial, sans-serif; min-height: 100vh; }
+        .container { width: 100%; max-width: 520px; margin: auto; padding: 16px; }
+        header { text-align: center; margin-bottom: 14px; }
+        .logo { font-size: 42px; font-weight: 900; letter-spacing: 5px; }
+        .subtitle { color: #e50914; font-weight: bold; font-size: 14px; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        .panel { background: #202020; border-radius: 18px; padding: 20px; margin-top: 14px; text-align: center; }
+        button { width: 100%; border: 0; border-radius: 14px; padding: 17px; margin-top: 12px; font-size: 18px; font-weight: bold; cursor: pointer; color: white; background: #e50914; }
+        button.secondary { background: #303030; }
+        button.success { background: #28a745; }
+        button.info { background: #17a2b8; }
+        button.warning { background: #ffc107; color: black; }
+        input[type="text"] { width: 100%; padding: 14px; font-size: 16px; border-radius: 10px; border: 1px solid #444; background: #303030; color: white; margin-bottom: 10px; }
+        .audio-player { position: fixed; bottom: -500px; left: -500px; width: 300px; height: 300px; z-index: -999; }
+        .audio-player iframe { width: 100%; height: 100%; border: 0; }
+        .game-title { font-size: 24px; font-weight: bold; color: #f5be32; }
+        .music-title { color: #fff; margin-top: 10px; font-size: 20px; font-weight: bold; }
+        .card-category { color: #e50914; margin-top: 6px; font-size: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .card-date { color: #aaa; margin-top: 6px; font-size: 16px; font-style: italic; }
+        .feedback { margin-top: 15px; font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">GEEKSTER</div>
+            <div class="subtitle">🎵 BLIND TEST ALÉATOIRE</div>
+        </header>
+
+        <!-- 1. ACCUEIL -->
+        <section id="home" class="screen active">
+            <div class="panel">
+                <h2>Prêt pour un Blind Test ?</h2>
+                <p>L'application va piocher des musiques au hasard. Tape le nom de l'œuvre ou de la musique, même avec de petites fautes !</p>
+                <button onclick="startRandomBlindTest()">🎲 COMMENCER LA PARTIE</button>
+            </div>
+        </section>
+
+        <!-- 2. BLIND TEST INTERACTIF -->
+        <section id="blindTestScreen" class="screen">
+            <div class="panel">
+                <h2>🎯 DEVINE LE TITRE / L'ŒUVRE</h2>
+                <div id="btPlayingCategory" style="margin-bottom: 15px; font-weight: bold; color: #e50914; text-transform: uppercase;"></div>
+                
+                <input type="text" id="btUserGuess" placeholder="Tape ton œuvre ici..." autocomplete="off">
+                <button onclick="checkBTGuess()">VALIDER LA RÉPONSE</button>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="info" onclick="showBTLetter()" style="margin-top:0;">💡 1ère lettre</button>
+                    <button class="warning" onclick="showBTDate()" style="margin-top:0;">📅 Année</button>
+                </div>
+
+                <div id="btClues" style="margin-top: 15px; font-weight: bold; color: #f5be32; font-size: 16px;"></div>
+                <div id="btFeedback" class="feedback"></div>
+            </div>
+            <button class="warning" onclick="revealCard()">👀 PASSER / RÉVÉLER</button>
+            <button class="secondary" onclick="startRandomBlindTest()">⏭️ MUSIQUE SUIVANTE</button>
+        </section>
+
+        <!-- Lecteur YouTube unique -->
+        <div id="youtubePlayer" class="audio-player"></div>
+
+        <!-- 3. RÉVÉLATION -->
+        <section id="revealScreen" class="screen">
+            <div class="panel">
+                <h2>🎉 RÉVÉLATION</h2>
+                <div id="gameTitle" class="game-title"></div>
+                <div id="musicTitle" class="music-title"></div>
+                <div id="cardCategory" class="card-category"></div>
+                <div id="cardDate" class="card-date"></div>
+
+                <button class="success" onclick="startRandomBlindTest()" style="margin-top:20px;">▶️ MUSIQUE SUIVANTE</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Script de l'API YouTube Iframe -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <script>
+        // Ta base de données complète (avec tes musiques Jeux Vidéo, Films, Séries)
+        const cards = {
+            "001": { music: "MIDGAR", game: "Final Fantasy 7", date: "1997", category: "Jeux vidéo", youtube: "6uq5AbZXnaQ" },
+            "002": { music: "Menu lancement + tour", game: "Destiny", date: "2014", category: "Jeux vidéo", youtube: "LRKfd5EKBtI" },
+            "003": { music: "Goldeneye 64", game: "James Bond", date: "1997", category: "Jeux vidéo", youtube: "FV7GI2LxWRw" },
+            "102": { music: "Main theme", game: "Titanic", date: "1998", category: "FILM", youtube: "F2RnxZnubCM" },
+            "106": { music: "Main theme", game: "Star wars", date: "1977", category: "FILM", youtube: "_D0ZQPqeJkk" },
+            // Tu peux coller le reste de ton énorme liste ici sans problème !
+        };
+
+        let player;
+        let currentCard = null;
+
+        // Initialisation de l'API YouTube
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtubePlayer', {
+                height: '300',
+                width: '300',
+                events: {}
+            });
+        }
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        // --- GESTION DU BLIND TEST ALÉATOIRE ---
+
+        function startRandomBlindTest() {
+            // Récupère toutes les clés de l'objet cards
+            const keys = Object.keys(cards);
+            // Pioche une clé au hasard
+            const randomKey = keys[Math.floor(Math.random() * keys.length)];
+            currentCard = cards[randomKey];
+
+            // Reset des champs
+            document.getElementById('btUserGuess').value = '';
+            document.getElementById('btClues').innerHTML = '';
+            document.getElementById('btFeedback').innerHTML = '';
+            document.getElementById('btPlayingCategory').innerText = `Catégorie : ${currentCard.category}`;
+
+            switchScreen('blindTestScreen');
+
+            // Lancer la musique sur YouTube
+            if (player && player.loadVideoById) {
+                player.loadVideoById(currentCard.youtube);
+            }
+        }
+
+        // Algorithme de Levenshtein (correction des fautes de frappe)
+        function getLevenshteinDistance(a, b) {
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
+            for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        // Normalisation (minuscules + suppression des accents)
+        function normalizeString(str) {
+            return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        }
+
+        function checkBTGuess() {
+            const userInputValue = document.getElementById('btUserGuess').value;
+            const userGuess = normalizeString(userInputValue);
+            
+            const targetGame = normalizeString(currentCard.game);
+            const targetMusic = normalizeString(currentCard.music);
+
+            // Tolérance proportionnelle à la longueur du mot (environ 40% d'erreur max acceptée)
+            const toleranceGame = Math.floor(targetGame.length * 0.4);
+            const toleranceMusic = Math.floor(targetMusic.length * 0.4);
+
+            const distanceGame = getLevenshteinDistance(userGuess, targetGame);
+            const distanceMusic = getLevenshteinDistance(userGuess, targetMusic);
+
+            const feedbackEl = document.getElementById('btFeedback');
+
+            if (distanceGame <= Math.max(2, toleranceGame) || distanceMusic <= Math.max(2, toleranceMusic)) {
+                feedbackEl.style.color = '#28a745';
+                feedbackEl.innerText = "✅ BONNE RÉPONSE ! 🎉";
+                if (player && player.stopVideo) player.stopVideo();
+                
+                // Passe automatiquement à l'écran de révélation après 1.5 seconde
+                setTimeout(() => {
+                    revealCard();
+                }, 1500);
+            } else {
+                feedbackEl.style.color = '#e50914';
+                feedbackEl.innerText = "❌ Presque... Essaie encore !";
+            }
+        }
+
+        function showBTLetter() {
+            const firstLetter = currentCard.game.charAt(0).toUpperCase();
+            document.getElementById('btClues').innerHTML = `💡 Indice : L'œuvre commence par "${firstLetter}"`;
+        }
+
+        function showBTDate() {
+            document.getElementById('btClues').innerHTML = `📅 Indice : Sortie en ${currentCard.date}`;
+        }
+
+        function revealCard() {
+            if (player && player.stopVideo) player.stopVideo();
+            document.getElementById('gameTitle').innerText = currentCard.game;
+            document.getElementById('musicTitle').innerText = `Morceau : ${currentCard.music}`;
+            document.getElementById('cardCategory').innerText = currentCard.category;
+            document.getElementById('cardDate').innerText = `Sortie en ${currentCard.date}`;
+            switchScreen('revealScreen');
+        }
+    </script>
+</body>
+</html>
