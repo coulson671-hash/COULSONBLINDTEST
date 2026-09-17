@@ -46,14 +46,23 @@
             </div>
         </section>
 
-        <!-- 1.1 CONFIGURATION DES ÉQUIPES -->
+        <!-- 1.1 CONFIGURATION DES ÉQUIPES (2 à 4) -->
         <section id="teamSetupScreen" class="screen">
             <div class="panel">
                 <h2>Nommez vos équipes</h2>
-                <input type="text" id="team1Name" placeholder="Nom de l'équipe 1 (ex: Les Bras Cassés)">
-                <input type="text" id="team2Name" placeholder="Nom de l'équipe 2 (ex: La Team Rocket)">
-                <input type="text" id="team3Name" placeholder="Nom de l'équipe 3 (optionnel)">
-                <button onclick="startTeamGame()" class="success">LANCER LE BLIND TEST ÉQUIPE</button>
+                
+                <!-- Les 2 équipes obligatoires -->
+                <input type="text" id="team1Name" placeholder="Équipe 1 (ex: Les Bras Cassés)" value="Équipe 1">
+                <input type="text" id="team2Name" placeholder="Équipe 2 (ex: La Team Rocket)" value="Équipe 2">
+                
+                <!-- Les équipes optionnelles (masquées au départ) -->
+                <input type="text" id="team3Name" placeholder="Équipe 3 (optionnel)" style="display:none;">
+                <input type="text" id="team4Name" placeholder="Équipe 4 (optionnel)" style="display:none;">
+
+                <!-- Bouton pour ajouter une équipe supplémentaire -->
+                <button class="secondary" id="addTeamBtn" onclick="showNextTeamInput()">➕ Ajouter une équipe</button>
+
+                <button onclick="startTeamGame()" class="success" style="margin-top: 15px;">LANCER LE BLIND TEST</button>
                 <button class="secondary" onclick="switchScreen('home')">RETOUR</button>
             </div>
         </section>
@@ -84,7 +93,7 @@
         <!-- Lecteur YouTube unique -->
         <div id="youtubePlayer" class="audio-player"></div>
 
-        <!-- 3. RÉVÉLATION & DISTRIBUTION DES POINTS (MODE ÉQUIPE) -->
+        <!-- 3. RÉVÉLATION & DISTRIBUTION DES POINTS -->
         <section id="revealScreen" class="screen">
             <div class="panel">
                 <h2>🎉 RÉVÉLATION</h2>
@@ -120,7 +129,7 @@
 
     <script>
         const cards = {
-          "001": { music: "MIDGAR", game: "Final Fantasy 7", date: "1997", category: "Jeux vidéo", youtube: "6uq5AbZXnaQ" },
+            "001": { music: "MIDGAR", game: "Final Fantasy 7", date: "1997", category: "Jeux vidéo", youtube: "6uq5AbZXnaQ" },
 "002": { music: "Menu lancement + tour", game: "Destiny", date: "2014", category: "Jeux vidéo", youtube: "LRKfd5EKBtI" },
 "003": { music: "Goldeneye 64", game: "James Bond", date: "1997", category: "Jeux vidéo", youtube: "FV7GI2LxWRw" },
 "004": { music: "theme menu", game: "Rayman", date: "1995", category: "Jeux vidéo", youtube: "SIXqoUb4S24" },
@@ -524,8 +533,8 @@
 
         let player;
         let currentCard = null;
-        let gameMode = 'solo'; // 'solo' ou 'teams'
-        let teams = []; // Tableau d'objets [{name: "Nom", score: 0}]
+        let gameMode = 'solo';
+        let teams = [];
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -547,7 +556,29 @@
 
         function goToTeamSetup() {
             gameMode = 'teams';
+            // Reset de l'affichage des champs optionnels
+            document.getElementById('team3Name').style.display = 'none';
+            document.getElementById('team4Name').style.display = 'none';
+            document.getElementById('team3Name').value = '';
+            document.getElementById('team4Name').value = '';
+            document.getElementById('addTeamBtn').style.display = 'block';
             switchScreen('teamSetupScreen');
+        }
+
+        // Fonction pour afficher les équipes 3 puis 4 au clic
+        function showNextTeamInput() {
+            const t3 = document.getElementById('team3Name');
+            const t4 = document.getElementById('team4Name');
+            const btn = document.getElementById('addTeamBtn');
+
+            if (t3.style.display === 'none') {
+                t3.style.display = 'block';
+                t3.value = 'Équipe 3';
+            } else if (t4.style.display === 'none') {
+                t4.style.display = 'block';
+                t4.value = 'Équipe 4';
+                btn.style.display = 'none'; // On masque le bouton une fois les 4 équipes atteintes
+            }
         }
 
         function startTeamGame() {
@@ -555,13 +586,15 @@
             const t1 = document.getElementById('team1Name').value.trim();
             const t2 = document.getElementById('team2Name').value.trim();
             const t3 = document.getElementById('team3Name').value.trim();
+            const t4 = document.getElementById('team4Name').value.trim();
 
             if (t1) teams.push({ name: t1, score: 0 });
             if (t2) teams.push({ name: t2, score: 0 });
-            if (t3) teams.push({ name: t3, score: 0 });
+            if (t3 && document.getElementById('team3Name').style.display !== 'none') teams.push({ name: t3, score: 0 });
+            if (t4 && document.getElementById('team4Name').style.display !== 'none') teams.push({ name: t4, score: 0 });
 
-            if (teams.length === 0) {
-                alert("Veuillez entrer au moins une équipe !");
+            if (teams.length < 2) {
+                alert("Il faut au moins 2 équipes !");
                 return;
             }
 
@@ -657,7 +690,6 @@
             document.getElementById('musicTitle').innerText = `Morceau : ${currentCard.music}`;
             document.getElementById('cardCategory').innerText = currentCard.category;
 
-            // Gestion de l'affichage des scores par équipe sur l'écran de révélation
             const teamSection = document.getElementById('teamPointsSection');
             const teamsListContainer = document.getElementById('teamsScoreList');
             teamsListContainer.innerHTML = '';
@@ -681,7 +713,6 @@
 
         function addPoint(index) {
             teams[index].score += 1;
-            // Rafraîchir l'affichage pour voir le score monter en direct
             revealCard();
         }
 
@@ -693,7 +724,6 @@
                 return;
             }
 
-            // Trier les équipes par score décroissant
             teams.sort((a, b) => b.score - a.score);
 
             const podiumContainer = document.getElementById('podiumList');
