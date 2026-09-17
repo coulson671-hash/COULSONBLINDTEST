@@ -14,7 +14,7 @@
         .screen { display: none; }
         .screen.active { display: block; }
         .panel { background: #202020; border-radius: 18px; padding: 20px; margin-top: 14px; text-align: center; }
-        button { width: 100%; border: 0; border-radius: 14px; padding: 17px; margin-top: 12px; font-size: 18px; font-weight: bold; cursor: pointer; color: white; background: #e50914; }
+        button { width: 100%; border: 0; border-radius: 14px; padding: 15px; margin-top: 10px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; background: #e50914; }
         button.secondary { background: #303030; }
         button.success { background: #28a745; }
         button.info { background: #17a2b8; }
@@ -25,8 +25,8 @@
         .game-title { font-size: 24px; font-weight: bold; color: #f5be32; }
         .music-title { color: #fff; margin-top: 10px; font-size: 20px; font-weight: bold; }
         .card-category { color: #e50914; margin-top: 6px; font-size: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        .card-date { color: #aaa; margin-top: 6px; font-size: 16px; font-style: italic; }
         .feedback { margin-top: 15px; font-size: 18px; font-weight: bold; }
+        .clues-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -40,7 +40,7 @@
         <section id="home" class="screen active">
             <div class="panel">
                 <h2>Prêt pour un Blind Test ?</h2>
-                <p>L'application va piocher des musiques au hasard. Tape le nom de l'œuvre ou de la musique, même avec de petites fautes !</p>
+                <p>L'application pioche au hasard. Tape le nom de l'œuvre (avec tolérance aux fautes de frappe) !</p>
                 <button onclick="startRandomBlindTest()">🎲 COMMENCER LA PARTIE</button>
             </div>
         </section>
@@ -54,12 +54,14 @@
                 <input type="text" id="btUserGuess" placeholder="Tape ton œuvre ici..." autocomplete="off">
                 <button onclick="checkBTGuess()">VALIDER LA RÉPONSE</button>
 
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button class="info" onclick="showBTLetter()" style="margin-top:0;">💡 1ère lettre</button>
-                    <button class="warning" onclick="showBTDate()" style="margin-top:0;">📅 Année</button>
+                <!-- Grille d'indices (3 choix) -->
+                <div class="clues-grid">
+                    <button class="info" onclick="showBTFirstLetter()" style="margin-top:0;">💡 1ère lettre</button>
+                    <button class="info" onclick="showBTWordCount()" style="margin-top:0;">🔤 Nombre de mots</button>
+                    <button class="warning" onclick="showBTThreeLetters()" style="margin-top:0;">🔑 3 premières lettres</button>
                 </div>
 
-                <div id="btClues" style="margin-top: 15px; font-weight: bold; color: #f5be32; font-size: 16px;"></div>
+                <div id="btClues" style="margin-top: 15px; font-weight: bold; color: #f5be32; font-size: 16px; line-height: 1.4;"></div>
                 <div id="btFeedback" class="feedback"></div>
             </div>
             <button class="warning" onclick="revealCard()">👀 PASSER / RÉVÉLER</button>
@@ -76,7 +78,6 @@
                 <div id="gameTitle" class="game-title"></div>
                 <div id="musicTitle" class="music-title"></div>
                 <div id="cardCategory" class="card-category"></div>
-                <div id="cardDate" class="card-date"></div>
 
                 <button class="success" onclick="startRandomBlindTest()" style="margin-top:20px;">▶️ MUSIQUE SUIVANTE</button>
             </div>
@@ -87,7 +88,6 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
-        // Ta base de données complète (avec tes musiques Jeux Vidéo, Films, Séries)
         const cards = {
             "001": { music: "MIDGAR", game: "Final Fantasy 7", date: "1997", category: "Jeux vidéo", youtube: "6uq5AbZXnaQ" },
 "002": { music: "Menu lancement + tour", game: "Destiny", date: "2014", category: "Jeux vidéo", youtube: "LRKfd5EKBtI" },
@@ -489,13 +489,11 @@
 "398": { music: "Generique", game: "Denver le dernier dinousaure", date: "1988", category: "ANIMATION", youtube: "_94uYMqupqk" },
 "399": { music: "Generique", game: "Bluey", date: "2019", category: "ANIMATION", youtube: "X9lsLuIJmzY" },
 "400": { music: "Generique", game: "Bob le bricoleur", date: "1998", category: "ANIMATION", youtube: "XTIDgq-taCo" },
-            // Tu peux coller le reste de ton énorme liste ici sans problème !
         };
 
         let player;
         let currentCard = null;
 
-        // Initialisation de l'API YouTube
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
                 height: '300',
@@ -509,16 +507,11 @@
             document.getElementById(screenId).classList.add('active');
         }
 
-        // --- GESTION DU BLIND TEST ALÉATOIRE ---
-
         function startRandomBlindTest() {
-            // Récupère toutes les clés de l'objet cards
             const keys = Object.keys(cards);
-            // Pioche une clé au hasard
             const randomKey = keys[Math.floor(Math.random() * keys.length)];
             currentCard = cards[randomKey];
 
-            // Reset des champs
             document.getElementById('btUserGuess').value = '';
             document.getElementById('btClues').innerHTML = '';
             document.getElementById('btFeedback').innerHTML = '';
@@ -526,13 +519,11 @@
 
             switchScreen('blindTestScreen');
 
-            // Lancer la musique sur YouTube
             if (player && player.loadVideoById) {
                 player.loadVideoById(currentCard.youtube);
             }
         }
 
-        // Algorithme de Levenshtein (correction des fautes de frappe)
         function getLevenshteinDistance(a, b) {
             const matrix = [];
             for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
@@ -549,7 +540,6 @@
             return matrix[b.length][a.length];
         }
 
-        // Normalisation (minuscules + suppression des accents)
         function normalizeString(str) {
             return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
         }
@@ -561,7 +551,6 @@
             const targetGame = normalizeString(currentCard.game);
             const targetMusic = normalizeString(currentCard.music);
 
-            // Tolérance proportionnelle à la longueur du mot (environ 40% d'erreur max acceptée)
             const toleranceGame = Math.floor(targetGame.length * 0.4);
             const toleranceMusic = Math.floor(targetMusic.length * 0.4);
 
@@ -575,7 +564,6 @@
                 feedbackEl.innerText = "✅ BONNE RÉPONSE ! 🎉";
                 if (player && player.stopVideo) player.stopVideo();
                 
-                // Passe automatiquement à l'écran de révélation après 1.5 seconde
                 setTimeout(() => {
                     revealCard();
                 }, 1500);
@@ -585,13 +573,22 @@
             }
         }
 
-        function showBTLetter() {
+        // --- GESTION DES INDICES ---
+
+        function showBTFirstLetter() {
             const firstLetter = currentCard.game.charAt(0).toUpperCase();
             document.getElementById('btClues').innerHTML = `💡 Indice : L'œuvre commence par "${firstLetter}"`;
         }
 
-        function showBTDate() {
-            document.getElementById('btClues').innerHTML = `📅 Indice : Sortie en ${currentCard.date}`;
+        function showBTWordCount() {
+            const wordCount = currentCard.game.trim().split(/\s+/).length;
+            document.getElementById('btClues').innerHTML = `🔤 Indice : Le titre comporte <b>${wordCount}</b> mot(s)`;
+        }
+
+        function showBTThreeLetters() {
+            const cleanGame = currentCard.game.trim();
+            const threeLetters = cleanGame.substring(0, 3).toUpperCase();
+            document.getElementById('btClues').innerHTML = `🔑 Indice : Les 3 premières lettres sont "${threeLetters}..."`;
         }
 
         function revealCard() {
@@ -599,7 +596,6 @@
             document.getElementById('gameTitle').innerText = currentCard.game;
             document.getElementById('musicTitle').innerText = `Morceau : ${currentCard.music}`;
             document.getElementById('cardCategory').innerText = currentCard.category;
-            document.getElementById('cardDate').innerText = `Sortie en ${currentCard.date}`;
             switchScreen('revealScreen');
         }
     </script>
